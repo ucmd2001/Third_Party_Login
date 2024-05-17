@@ -27,14 +27,14 @@ app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
 
 oauth.register(
     name="line",
-    client_id=os.getenv("CHANNEL_ID"),
-    client_secret=os.getenv("CHANNEL_SECRET"),
+    client_id=os.getenv("LINE_CHANNEL_ID"),
+    client_secret=os.getenv("LINE_CHANNEL_SECRET"),
     authorize_url="https://access.line.me/oauth2/v2.1/authorize",
     authorize_params=None,
     access_token_url="https://api.line.me/oauth2/v2.1/token",
     access_token_params=None,
     refresh_token_url=None,
-    redirect_uri=os.getenv("REDIRECT_URI"),
+    redirect_uri=os.getenv("LINE_REDIRECT_URI"),
     client_kwargs={"scope": "openid profile email"},
 )
 
@@ -64,6 +64,7 @@ async def login(request: Request):
 @app.route("/line/auth")
 async def auth(request: Request):
     code = request.query_params.get("code")
+    print(code , '-------------------------------------------------')
     try:
         async with AsyncClient() as client:
             # 获取 id_token
@@ -72,23 +73,23 @@ async def auth(request: Request):
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": os.getenv("REDIRECT_URI"),
-                    "client_id": os.getenv("CHANNEL_ID"),
-                    "client_secret": os.getenv("CHANNEL_SECRET"),
+                    "redirect_uri": os.getenv("LINE_REDIRECT_URI"),
+                    "client_id": os.getenv("LINE_CHANNEL_ID"),
+                    "client_secret": os.getenv("LINE_CHANNEL_SECRET"),
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )
             response.raise_for_status()
             token_data = response.json()
             id_token = token_data.get("id_token")
-            # logger.info(f"Token Data: {token_data}")
-            # logger.info(f"ID Token: {id_token}")
+            # logger.info(f"Token Data: {token_data}"
+            logger.info(f"ID Token: {id_token}")
 
             verify_response = await client.post(
                 "https://api.line.me/oauth2/v2.1/verify",
                 data={
                     "id_token": id_token,
-                    "client_id": os.getenv("CHANNEL_ID"),
+                    "client_id": os.getenv("LINE_CHANNEL_ID"),
                 },
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
             )

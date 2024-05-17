@@ -5,7 +5,7 @@ def create_database_and_table():
     # 連接到 SQL Server (調整連接字串以符合您的環境設定)
     conn = pyodbc.connect(
         "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=localhost\\SQLEXPRESS;"  # 注意双反斜杠是必需的
+        "SERVER=localhost\\SQLEXPRESS;" 
         "DATABASE=master;"
         "Trusted_Connection=yes;"
     )
