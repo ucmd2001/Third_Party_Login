@@ -15,7 +15,6 @@ import hmac
 import json
 import time
 from httpx import AsyncClient
-from utils import verify
 
 load_dotenv(".local.env")
 logging.basicConfig(level=logging.INFO)
@@ -38,25 +37,29 @@ oauth.register(
     client_kwargs={"scope": "openid profile email"},
 )
 
-
+#首頁 ,
 @app.get("/")
 async def read_users(request: Request):
     user_info = request.session.get("user")
-    if user_info:
+    profile_info = request.session.get("profile")
+    if user_info and profile_info:
         print(user_info)
+        print(profile_info)
         return JSONResponse(
             content={
                 "message": "Success Get User info",
                 "iss": user_info["iss"],
                 "sub": user_info["sub"],
+                "profile": profile_info,
             }
         )
     return JSONResponse(content={"message": "No user info found"})
 
-
+#當用戶進入login , 重新導向至第三方頁面
 @app.get("/login")
 async def login(request: Request):
     redirect_uri = request.url_for("auth")
+    print(f"Requset from Fronend: {request}")
     print(f"Generated redirect_uri: {redirect_uri}")
     return await oauth.line.authorize_redirect(request, redirect_uri)
 
@@ -64,10 +67,10 @@ async def login(request: Request):
 @app.route("/line/auth")
 async def auth(request: Request):
     code = request.query_params.get("code")
-    print(code , '-------------------------------------------------')
+    print(code, '-------------------------------------------------')
     try:
         async with AsyncClient() as client:
-            # 获取 id_token
+            #前端重新導向並得到許可後, 拿取得的code換取 token 
             response = await client.post(
                 "https://api.line.me/oauth2/v2.1/token",
                 data={
@@ -82,9 +85,11 @@ async def auth(request: Request):
             response.raise_for_status()
             token_data = response.json()
             id_token = token_data.get("id_token")
-            # logger.info(f"Token Data: {token_data}"
+            access_token = token_data.get("access_token")
             logger.info(f"ID Token: {id_token}")
+            logger.info(f"Access Token: {access_token}")
 
+            #得到 Token 後, 依照API文件格式, 獲取用戶資料
             verify_response = await client.post(
                 "https://api.line.me/oauth2/v2.1/verify",
                 data={
@@ -97,7 +102,19 @@ async def auth(request: Request):
             verify_data = verify_response.json()
             logger.info(f"Verify Response: {verify_data}")
 
+            #得到 Token 後, 依照API文件格式, 獲取用戶資料
+            profile_response = await client.get(
+                "https://api.line.me/v2/profile",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            profile_response.raise_for_status()
+            profile_data = profile_response.json()
+            logger.info(f"Profile Data: {profile_data}")
+
+            # 将用户资料和 access_token 存储在会话中
             request.session["user"] = verify_data
+            request.session["access_token"] = access_token
+            request.session["profile"] = profile_data
 
             return RedirectResponse(url="/")
 
